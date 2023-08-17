@@ -19,6 +19,22 @@ jobs:
       - name: Test
         run: cargo test
 
+  parse:
+    name: Parse demo repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.70.0
+          override: true
+      - name: Clone repo
+        run: git clone https://github.com/coredump-ch/gitcash-demo-repo/
+      - name: Build
+        run: cargo build
+      - name: Calculate balances
+        run: target/debug/gitcash --repo-path gitcash-demo-repo balances
+
   rustfmt:
     name: Check code formatting
     runs-on: ubuntu-latest
