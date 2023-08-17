@@ -1,2 +1,2 @@
 [workspace]
-members = ["libgitcash"]
+members = ["libgitcash", "gitcash"]
