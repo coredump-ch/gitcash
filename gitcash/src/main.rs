@@ -93,6 +93,13 @@ pub fn main() -> anyhow::Result<()> {
             );
 
             // Validators
+            let amount_validator = move |value: &str| {
+                Ok(if let Ok(_) = value.parse::<f64>() {
+                    Validation::Valid
+                } else {
+                    Validation::Invalid(ErrorMessage::Default)
+                })
+            };
             let username_validator = {
                 let usernames = usernames.clone();
                 move |value: &str| {
@@ -121,14 +128,17 @@ pub fn main() -> anyhow::Result<()> {
 
             loop {
                 // First, ask for amount, then for name
-                let amount = inquire::Text::new("Amount?")
+                let amount: f32 = inquire::Text::new("Amount?")
                     .with_placeholder("e.g. 2.50 CHF")
-                    .prompt()?;
+                    .with_validator(amount_validator)
+                    .prompt()?
+                    .parse()
+                    .expect("Invalid float (even after validation)");
                 let name = inquire::Text::new("Name?")
                     .with_autocomplete(suggester.clone())
                     .with_validator(username_validator.clone())
                     .prompt()?;
-                println!("Creating transaction: {} pays {} CHF", name, amount);
+                println!("Creating transaction: {} pays {:.2} CHF", name, amount);
             }
         }
     }
