@@ -55,7 +55,7 @@ See `docs/spec.md`.
 
 See <https://github.com/coredump-ch/gitcash-demo-repo>.
 
-## Crates
+## SDK and reference implementation
 
 - `libgitcash`: Library / SDK that can be used for processing a GitCash
   repository

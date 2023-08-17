@@ -9,10 +9,9 @@ use tracing::debug;
 mod error;
 mod transaction;
 
-use crate::{
-    error::Error,
-    transaction::{extract_transaction, Account, Transaction},
-};
+use crate::{error::Error, transaction::extract_transaction};
+
+pub use transaction::{Account, AccountType, Transaction};
 
 /// A GitCash repository and all its transactions
 pub struct Repo {

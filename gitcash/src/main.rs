@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use libgitcash::Repo;
+use libgitcash::{AccountType, Repo};
 use tracing::metadata::LevelFilter;
 
 #[derive(Parser)]
@@ -14,8 +14,12 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
-    ListAccounts,
-    ListBalances,
+    /// List all accounts
+    Accounts,
+    /// List all account balances
+    Balances,
+    /// List all user accounts with negative balances
+    Shame,
 }
 
 pub fn main() -> anyhow::Result<()> {
@@ -32,13 +36,13 @@ pub fn main() -> anyhow::Result<()> {
     let repo = Repo::open(&args.repo_path)?;
 
     match args.command {
-        Command::ListAccounts => {
+        Command::Accounts => {
             println!("Accounts:");
             for account in repo.accounts() {
                 println!("- Account: {} ({:?})", account.name, account.account_type);
             }
         }
-        Command::ListBalances => {
+        Command::Balances => {
             println!("Balances:");
             for (account, balance) in repo.balances() {
                 println!(
@@ -47,6 +51,27 @@ pub fn main() -> anyhow::Result<()> {
                     balance as f32 / 100.0,
                     account.account_type
                 );
+            }
+        }
+        Command::Shame => {
+            println!("Wall of shame (negative user balances):");
+            let negative_balance_accounts = repo
+                .balances()
+                .into_iter()
+                .filter(|(account, balance)| {
+                    account.account_type == AccountType::User && *balance < 0
+                })
+                .collect::<Vec<_>>();
+            for (account, balance) in &negative_balance_accounts {
+                println!(
+                    "- {}: {:.2} CHF [{:?}]",
+                    account.name,
+                    *balance as f32 / 100.0,
+                    account.account_type
+                );
+            }
+            if negative_balance_accounts.is_empty() {
+                println!("None at all! 🎉");
             }
         }
     }
