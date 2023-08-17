@@ -1,4 +1,7 @@
-use std::{collections::HashSet, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use git2::Sort;
 use tracing::debug;
@@ -11,11 +14,13 @@ use crate::{
     transaction::{extract_transaction, Account, Transaction},
 };
 
+/// A GitCash repository and all its transactions
 pub struct Repo {
     transactions: Vec<Transaction>,
 }
 
 impl Repo {
+    /// Open a GitCash repository at the specified path and parse all transactions
     pub fn open(repo_path: &Path) -> Result<Self, Error> {
         // Open git repo
         tracing::debug!("Loading repository at {:?}", repo_path);
@@ -39,7 +44,8 @@ impl Repo {
                 continue;
             }
             debug!("Processing commit {}", commit.id());
-            transactions.push(extract_transaction(message)?);
+            let transaction = extract_transaction(message)?;
+            transactions.push(transaction);
         }
 
         Ok(Repo { transactions })
@@ -51,5 +57,17 @@ impl Repo {
             .iter()
             .flat_map(|t| [t.from.clone(), t.to.clone()])
             .collect()
+    }
+
+    /// Return all accounts and their balances
+    pub fn balances(&self) -> HashMap<Account, i32> {
+        let mut accounts = HashMap::new();
+        for transaction in &self.transactions {
+            let source = accounts.entry(transaction.from.clone()).or_default();
+            *source -= transaction.amount;
+            let destination = accounts.entry(transaction.to.clone()).or_default();
+            *destination += transaction.amount;
+        }
+        accounts
     }
 }

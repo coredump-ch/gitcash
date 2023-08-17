@@ -15,6 +15,7 @@ struct Args {
 #[derive(Subcommand)]
 enum Command {
     ListAccounts,
+    ListBalances,
 }
 
 pub fn main() -> anyhow::Result<()> {
@@ -27,10 +28,27 @@ pub fn main() -> anyhow::Result<()> {
     // Parse args
     let args = Args::parse();
 
+    // Open repo
     let repo = Repo::open(&args.repo_path)?;
-    println!("Accounts:");
-    for account in repo.accounts() {
-        println!("- Account: {} ({:?})", account.name, account.account_type);
+
+    match args.command {
+        Command::ListAccounts => {
+            println!("Accounts:");
+            for account in repo.accounts() {
+                println!("- Account: {} ({:?})", account.name, account.account_type);
+            }
+        }
+        Command::ListBalances => {
+            println!("Balances:");
+            for (account, balance) in repo.balances() {
+                println!(
+                    "- {}: {:.2} CHF [{:?}]",
+                    account.name,
+                    balance as f32 / 100.0,
+                    account.account_type
+                );
+            }
+        }
     }
 
     Ok(())

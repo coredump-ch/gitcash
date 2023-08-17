@@ -4,7 +4,7 @@ use crate::error::Error;
 pub struct Transaction {
     pub from: Account,
     pub to: Account,
-    pub amount: usize,
+    pub amount: i32,
     pub description: Option<String>,
     pub meta: Option<TransactionMeta>,
 }
