@@ -25,7 +25,7 @@ This has a few advantages:
 - The integrity is ensured through Git hashes
 - The transactions are ordered in the Git DAG
 - Transactions can be validated using a pre-push hook on the server
-- Conflicts can be resoved by merging
+- Conflicts can be resolved by merging
 - You could create transactions "by hand"
 - Commits could be signed
 
@@ -35,13 +35,13 @@ access to the repository.
 ## Use cases for nodes
 
 - **Fridge**: Pay for drinks at the fridge by scanning the barcode
-- **Lasercutter**: Pay for lasercutter time by starting and stopping your
-  session on a touchpanel
+- **Laser Cutter**: Pay for laser cutter time by starting and stopping your
+  session on a touch panel
 - **3D Printer**: Pay for your 3D prints by putting your print on an electronic
-  scale and entering your name and the material on a touchpanel
+  scale and entering your name and the material on a touch panel
 - **Notification Monitor**: Whenever money is deduced from your account, you
   get a notification
-- ...and many more!
+- ... and many more!
 
 Not all nodes might have the processing power to be a "full node" that can
 parse the Git repository. For these use cases, a small server could accept new
