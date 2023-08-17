@@ -4,6 +4,12 @@ GitCash is a git based payment system primarily targeted at hackerspaces and
 similar groups. It is being developed by [Coredump](https://www.coredump.ch/) in
 collaboration with other Swiss hackerspaces.
 
+## Crates
+
+- `libgitcash`: Library / SDK that can be used for processing a GitCash
+  repository
+- `gitcash`: A CLI client for GitCash
+
 ## License
 
 Licensed under the AGPL version 3 or later. See `LICENSE.md` file.
