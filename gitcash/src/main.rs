@@ -143,7 +143,7 @@ pub fn main() -> anyhow::Result<()> {
                 repo.create_transaction(&Transaction {
                     from: Account::user(name),
                     to: Account::point_of_sale("TODO"),
-                    amount: (amount * 100.0) as i32,
+                    amount: repo.convert_amount(amount),
                     description: None,
                     meta: None,
                 })

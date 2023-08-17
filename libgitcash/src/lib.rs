@@ -6,16 +6,21 @@ use std::{
 use git2::{Signature, Sort};
 use tracing::debug;
 
+mod config;
 mod error;
 mod transaction;
 
 use crate::{error::Error, transaction::extract_transaction};
 
-pub use transaction::{Account, AccountType, Transaction};
+pub use crate::{
+    config::{Currency, RepoConfig},
+    transaction::{Account, AccountType, Transaction},
+};
 
 /// A GitCash repository and all its transactions
 pub struct Repo {
     repository: git2::Repository,
+    config: RepoConfig,
     transactions: Vec<Transaction>,
 }
 
@@ -28,6 +33,12 @@ impl Repo {
             Ok(repo) => repo,
             Err(e) => return Err(Error::RepoError(format!("Failed to open repo: {}", e))),
         };
+
+        // Read config
+        let config_string = std::fs::read_to_string(repo_path.join("gitcash.toml"))
+            .map_err(|e| Error::RepoError(format!("Could not read gitcash.toml: {}", e)))?;
+        let config: RepoConfig = toml::from_str(&config_string)
+            .map_err(|e| Error::RepoError(format!("Could not parse gitcash.toml: {}", e)))?;
 
         // Traverse commits from oldest to newest, extract transactions
         let mut revwalk = repo.revwalk()?;
@@ -50,6 +61,7 @@ impl Repo {
 
         Ok(Repo {
             repository: repo,
+            config,
             transactions,
         })
     }
@@ -74,8 +86,14 @@ impl Repo {
         accounts
     }
 
+    /// Convert a floating-point currency amount into an integer based value.
+    pub fn convert_amount(&self, amount: f32) -> i32 {
+        let amount = amount * self.config.currency.divisor as f32;
+        amount as i32
+    }
+
     pub fn create_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
-        let summary = transaction.summary();
+        let summary = transaction.summary(&self.config);
         debug!("Creating commit: {}", &summary);
 
         // Encode transaction

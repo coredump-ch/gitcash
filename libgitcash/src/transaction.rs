@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::{error::Error, RepoConfig};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -11,12 +11,13 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn summary(&self) -> String {
+    pub fn summary(&self, config: &RepoConfig) -> String {
         format!(
-            "Transaction: {:?} {} pays {:.2} CHF to {:?} {}",
+            "Transaction: {:?} {} pays {:.2} {} to {:?} {}",
             self.from.account_type,
             self.from.name,
-            self.amount as f32 / 100.0,
+            self.amount as f32 / config.currency.divisor as f32,
+            config.currency.code,
             self.to.account_type,
             self.to.name,
         )
