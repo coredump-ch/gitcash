@@ -8,11 +8,11 @@ collaboration with other Swiss hackerspaces.
 
 There are multiple account types:
 
-- **User**: Can both send money (pay for goods) and receive money (deposit
-  money into account, person-to-person payments)
-- **Point of Payment**: Can only receive money
-- **Source**: Special type of account that can be used to deposit money into
-  the system
+- **User** (prefix `user:`): Can both send money (pay for goods) and receive
+  money (deposit money into account, person-to-person payments)
+- **Point of Sale** (prefix `pos:`): Can only receive money
+- **Source** (prefix `source:`): Special type of account that can be used to
+  deposit money into the system
 
 ## Storage format
 
@@ -59,7 +59,7 @@ Transaction: User danilo buys "Vivi Kola 33cl" (2.50 CHF)
 
 ---
 from = "user:danilo"
-to = "pop:fridge"
+to = "pos:fridge"
 amount = 250
 description = "Vivi Kola 33cl"
 

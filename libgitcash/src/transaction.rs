@@ -19,8 +19,8 @@ pub struct TransactionMeta {
 pub enum AccountType {
     /// A user can both receive and send money
     User,
-    /// A point of payment can only receive money
-    PointOfPayment,
+    /// A point of sale can only receive money
+    PointOfSale,
     /// A cash source is used to deposit money into the system
     Source,
 }
@@ -43,7 +43,7 @@ impl TryFrom<String> for Account {
         })?;
         let account_type = match raw_account_type {
             "user" => AccountType::User,
-            "pop" => AccountType::PointOfPayment,
+            "pos" => AccountType::PointOfSale,
             "source" => AccountType::Source,
             other => {
                 return Err(Error::TransactionParseError(format!(
