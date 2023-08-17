@@ -1,0 +1,32 @@
+on:
+  push:
+
+name: CI
+
+jobs:
+
+  test:
+    name: Build and test crates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.70.0
+          override: true
+      - name: Build
+        run: cargo build
+      - name: Test
+        run: cargo test
+
+  rustfmt:
+    name: Check code formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.70.0
+          override: true
+          components: rustfmt
+      - run: cargo fmt -- --check
