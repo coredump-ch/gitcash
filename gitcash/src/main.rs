@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use clap::{Parser, Subcommand};
+use inquire::validator::{ErrorMessage, Validation};
 use libgitcash::{AccountType, Repo};
 use tracing::metadata::LevelFilter;
 
@@ -20,6 +23,9 @@ enum Command {
     Balances,
     /// List all user accounts with negative balances
     Shame,
+
+    /// Interactive CLI
+    Cli,
 }
 
 pub fn main() -> anyhow::Result<()> {
@@ -72,6 +78,57 @@ pub fn main() -> anyhow::Result<()> {
             }
             if negative_balance_accounts.is_empty() {
                 println!("None at all! 🎉");
+            }
+        }
+        Command::Cli => {
+            println!("Welcome to the GitCash CLI!");
+
+            // Get list of valid user account names
+            let usernames = Arc::new(
+                repo.accounts()
+                    .into_iter()
+                    .filter(|acc| acc.account_type == AccountType::User)
+                    .map(|acc| acc.name)
+                    .collect::<Vec<_>>(),
+            );
+
+            // Validators
+            let username_validator = {
+                let usernames = usernames.clone();
+                move |value: &str| {
+                    Ok(if usernames.iter().any(|name| name == value) {
+                        Validation::Valid
+                    } else {
+                        Validation::Invalid(ErrorMessage::Custom(format!(
+                            "Not a known username: {}",
+                            value
+                        )))
+                    })
+                }
+            };
+
+            // Autocompletion: All names that contain the current input as
+            // substring (case-insensitive)
+            let suggester = {
+                move |val: &str| {
+                    Ok(usernames
+                        .iter()
+                        .filter(|acc| acc.to_lowercase().contains(&val.to_lowercase()))
+                        .cloned()
+                        .collect())
+                }
+            };
+
+            loop {
+                // First, ask for amount, then for name
+                let amount = inquire::Text::new("Amount?")
+                    .with_placeholder("e.g. 2.50 CHF")
+                    .prompt()?;
+                let name = inquire::Text::new("Name?")
+                    .with_autocomplete(suggester.clone())
+                    .with_validator(username_validator.clone())
+                    .prompt()?;
+                println!("Creating transaction: {} pays {} CHF", name, amount);
             }
         }
     }
