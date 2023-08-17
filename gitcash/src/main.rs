@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use inquire::validator::{ErrorMessage, Validation};
-use libgitcash::{AccountType, Repo};
+use libgitcash::{Account, AccountType, Repo, Transaction};
 use tracing::metadata::LevelFilter;
 
 #[derive(Parser)]
@@ -139,6 +139,15 @@ pub fn main() -> anyhow::Result<()> {
                     .with_validator(username_validator.clone())
                     .prompt()?;
                 println!("Creating transaction: {} pays {:.2} CHF", name, amount);
+
+                repo.create_transaction(&Transaction {
+                    from: Account::user(name),
+                    to: Account::point_of_sale("TODO"),
+                    amount: (amount * 100.0) as i32,
+                    description: None,
+                    meta: None,
+                })
+                .unwrap();
             }
         }
     }

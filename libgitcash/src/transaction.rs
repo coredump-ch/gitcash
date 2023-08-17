@@ -1,6 +1,7 @@
 use crate::error::Error;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Transaction {
     pub from: Account,
     pub to: Account,
@@ -9,7 +10,20 @@ pub struct Transaction {
     pub meta: Option<TransactionMeta>,
 }
 
-#[derive(Debug, serde::Deserialize)]
+impl Transaction {
+    pub fn summary(&self) -> String {
+        format!(
+            "Transaction: {:?} {} pays {:.2} CHF to {:?} {}",
+            self.from.account_type,
+            self.from.name,
+            self.amount as f32 / 100.0,
+            self.to.account_type,
+            self.to.name,
+        )
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TransactionMeta {
     pub class: String,
     pub ean: u64,
@@ -25,11 +39,48 @@ pub enum AccountType {
     Source,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Hash, Clone, serde::Deserialize)]
-#[serde(try_from = "String")]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Hash, Clone, Deserialize, Serialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct Account {
     pub account_type: AccountType,
     pub name: String,
+}
+
+impl Account {
+    pub fn user<S: Into<String>>(name: S) -> Self {
+        Self {
+            account_type: AccountType::User,
+            name: name.into(),
+        }
+    }
+
+    pub fn point_of_sale<S: Into<String>>(name: S) -> Self {
+        Self {
+            account_type: AccountType::PointOfSale,
+            name: name.into(),
+        }
+    }
+
+    pub fn source<S: Into<String>>(name: S) -> Self {
+        Self {
+            account_type: AccountType::Source,
+            name: name.into(),
+        }
+    }
+}
+
+impl Into<String> for Account {
+    fn into(self) -> String {
+        format!(
+            "{}:{}",
+            match self.account_type {
+                AccountType::User => "user",
+                AccountType::PointOfSale => "pos",
+                AccountType::Source => "source",
+            },
+            self.name,
+        )
+    }
 }
 
 impl TryFrom<String> for Account {
