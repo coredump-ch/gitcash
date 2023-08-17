@@ -3,6 +3,7 @@ name = "libgitcash"
 authors = ["Danilo Bargen <mail@dbrgn.ch>"]
 version = "0.1.0"
 edition = "2021"
+license = "AGPL-3.0"
 
 [dependencies]
 git2 = "0.17.2"
