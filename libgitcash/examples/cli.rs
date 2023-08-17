@@ -1,7 +1,5 @@
-use std::path::PathBuf;
-
 use clap::{Parser, Subcommand};
-use libgitcash::get_accounts;
+use libgitcash::Repo;
 use tracing::metadata::LevelFilter;
 
 #[derive(Parser)]
@@ -29,10 +27,9 @@ pub fn main() -> anyhow::Result<()> {
     // Parse args
     let args = Args::parse();
 
-    let path = PathBuf::from(&args.repo_path);
-    tracing::info!("Loading repository at {:?}", path);
+    let repo = Repo::open(&args.repo_path)?;
     println!("Accounts:");
-    for account in get_accounts(path.as_ref())? {
+    for account in repo.accounts() {
         println!("- Account: {} ({:?})", account.name, account.account_type);
     }
 

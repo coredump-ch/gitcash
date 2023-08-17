@@ -15,7 +15,7 @@ pub struct TransactionMeta {
     pub ean: u64,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Hash, Clone, Copy)]
 pub enum AccountType {
     /// A user can both receive and send money
     User,
@@ -25,7 +25,7 @@ pub enum AccountType {
     Source,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Hash, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Hash, Clone, serde::Deserialize)]
 #[serde(try_from = "String")]
 pub struct Account {
     pub account_type: AccountType,
@@ -65,4 +65,20 @@ impl TryFrom<String> for Account {
 
         Ok(Self { account_type, name })
     }
+}
+
+/// Extract a transaction from a commit message
+pub(crate) fn extract_transaction(commit_message: &str) -> Result<Transaction, Error> {
+    let mut lines = Vec::new();
+    let mut in_transaction = false;
+    for line in commit_message.lines() {
+        match in_transaction {
+            false if line == "---" => in_transaction = true,
+            true if line == "---" => break,
+            false => continue,
+            true => lines.push(line.to_string()),
+        }
+    }
+    toml::from_str(&lines.join("\n"))
+        .map_err(|e| Error::TransactionParseError(format!("Invalid TOML transaction data: {}", e)))
 }
