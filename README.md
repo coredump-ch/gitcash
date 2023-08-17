@@ -51,6 +51,10 @@ transactions over a simple API and write them to the repository.
 
 See `docs/spec.md`.
 
+## Demo repository
+
+See <https://github.com/coredump-ch/gitcash-demo-repo>.
+
 ## Crates
 
 - `libgitcash`: Library / SDK that can be used for processing a GitCash
