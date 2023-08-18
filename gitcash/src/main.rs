@@ -45,14 +45,17 @@ impl CommandSuggester {
         Self {
             commands: commands
                 .iter()
-                .map(|command| (*command).into())
-                .collect::<Vec<&'static str>>(),
+                .map(|command| command.command())
+                .collect::<Vec<_>>(),
         }
     }
 }
 
 impl Autocomplete for CommandSuggester {
     fn get_suggestions(&mut self, input: &str) -> Result<Vec<String>, inquire::CustomUserError> {
+        if input.is_empty() {
+            return Ok(vec![]);
+        }
         Ok(self
             .commands
             .iter()
@@ -76,11 +79,18 @@ enum CliCommand {
     Help,
 }
 
-impl Into<&'static str> for CliCommand {
-    fn into(self) -> &'static str {
+impl CliCommand {
+    fn command(&self) -> &'static str {
         match self {
             CliCommand::AddUser => "adduser",
             CliCommand::Help => "help",
+        }
+    }
+
+    fn description(&self) -> &'static str {
+        match self {
+            CliCommand::AddUser => "Add a new user",
+            CliCommand::Help => "Show this help",
         }
     }
 }
@@ -217,7 +227,10 @@ fn handle_cli_input(repo: &mut Repo, config: &Config) -> anyhow::Result<()> {
             return Ok(());
         }
         Ok(CliCommand::Help) => {
-            println!("Help");
+            println!("Available commands:");
+            for command in COMMANDS {
+                println!("- {}: {}", command.command(), command.description());
+            }
             return Ok(());
         }
         Err(_) => {}
