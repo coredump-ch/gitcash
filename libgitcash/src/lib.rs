@@ -89,12 +89,12 @@ impl Repo {
         amount as i32
     }
 
-    pub fn create_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
+    pub fn create_transaction(&mut self, transaction: Transaction) -> Result<(), Error> {
         let summary = transaction.summary(&self.config);
         debug!("Creating commit: {}", &summary);
 
         // Encode transaction
-        let transaction_toml = toml::to_string(transaction)
+        let transaction_toml = toml::to_string(&transaction)
             .map_err(|e| Error::TransactionSerializeError(e.to_string()))?;
         let commit_message = format!("{}\n\n---\n{}\n---", &summary, transaction_toml.trim());
 
@@ -112,6 +112,9 @@ impl Repo {
         let commit =
             self.repository
                 .commit(Some("HEAD"), &sig, &sig, &commit_message, &tree, &[&head])?;
+
+        // Store transaction
+        self.transactions.push(transaction);
 
         debug!("Created commit: {commit}");
         Ok(())
