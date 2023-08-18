@@ -1,15 +1,18 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use clap::{Parser, Subcommand};
+use config::Config;
 use inquire::validator::{ErrorMessage, Validation};
 use libgitcash::{Account, AccountType, Repo, Transaction};
 use tracing::metadata::LevelFilter;
 
+mod config;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short, long)]
-    repo_path: std::path::PathBuf,
+    #[arg(short, long, default_value = "config.toml")]
+    config: PathBuf,
 
     #[command(subcommand)]
     command: Command,
@@ -38,9 +41,13 @@ pub fn main() -> anyhow::Result<()> {
     // Parse args
     let args = Args::parse();
 
-    // Open repo
-    let repo = Repo::open(&args.repo_path)?;
+    // Parse config
+    let config = Config::load(&args.config)?;
 
+    // Open repo
+    let repo = Repo::open(&config.repo_path)?;
+
+    // Run command
     match args.command {
         Command::Accounts => {
             println!("Accounts:");
@@ -81,7 +88,7 @@ pub fn main() -> anyhow::Result<()> {
             }
         }
         Command::Cli => {
-            println!("Welcome to the GitCash CLI!");
+            println!("Welcome to the GitCash CLI for {}!", config.git_name);
 
             // Get list of valid user account names
             let usernames = Arc::new(
@@ -142,7 +149,7 @@ pub fn main() -> anyhow::Result<()> {
 
                 repo.create_transaction(&Transaction {
                     from: Account::user(name),
-                    to: Account::point_of_sale("TODO"),
+                    to: config.account.clone(),
                     amount: repo.convert_amount(amount),
                     description: None,
                     meta: None,

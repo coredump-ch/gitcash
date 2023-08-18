@@ -35,10 +35,7 @@ impl Repo {
         };
 
         // Read config
-        let config_string = std::fs::read_to_string(repo_path.join("gitcash.toml"))
-            .map_err(|e| Error::RepoError(format!("Could not read gitcash.toml: {}", e)))?;
-        let config: RepoConfig = toml::from_str(&config_string)
-            .map_err(|e| Error::RepoError(format!("Could not parse gitcash.toml: {}", e)))?;
+        let config = RepoConfig::load(repo_path)?;
 
         // Traverse commits from oldest to newest, extract transactions
         let mut revwalk = repo.revwalk()?;
