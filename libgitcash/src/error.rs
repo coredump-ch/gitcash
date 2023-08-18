@@ -8,4 +8,6 @@ pub enum Error {
     TransactionParseError(String),
     #[error("Could not serialize transaction: {0}")]
     TransactionSerializeError(String),
+    #[error("Validation error: {0}")]
+    ValidationError(String),
 }

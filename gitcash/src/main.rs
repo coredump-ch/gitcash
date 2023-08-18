@@ -1,8 +1,12 @@
 use std::{path::PathBuf, sync::Arc};
 
+use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
 use config::Config;
-use inquire::validator::{ErrorMessage, Validation};
+use inquire::{
+    validator::{ErrorMessage, Validation},
+    Autocomplete,
+};
 use libgitcash::{Account, AccountType, Repo, Transaction};
 use tracing::metadata::LevelFilter;
 
@@ -29,6 +33,67 @@ enum Command {
 
     /// Interactive CLI
     Cli,
+}
+
+#[derive(Clone)]
+struct CommandSuggester {
+    commands: Vec<&'static str>,
+}
+
+impl CommandSuggester {
+    pub fn new(commands: &[CliCommand]) -> Self {
+        Self {
+            commands: commands
+                .iter()
+                .map(|command| (*command).into())
+                .collect::<Vec<&'static str>>(),
+        }
+    }
+}
+
+impl Autocomplete for CommandSuggester {
+    fn get_suggestions(&mut self, input: &str) -> Result<Vec<String>, inquire::CustomUserError> {
+        Ok(self
+            .commands
+            .iter()
+            .filter(|acc| acc.to_lowercase().contains(&input.to_lowercase()))
+            .map(|value| value.to_string())
+            .collect::<Vec<_>>())
+    }
+
+    fn get_completion(
+        &mut self,
+        _input: &str,
+        highlighted_suggestion: Option<String>,
+    ) -> Result<inquire::autocompletion::Replacement, inquire::CustomUserError> {
+        Ok(highlighted_suggestion)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum CliCommand {
+    AddUser,
+    Help,
+}
+
+impl Into<&'static str> for CliCommand {
+    fn into(self) -> &'static str {
+        match self {
+            CliCommand::AddUser => "adduser",
+            CliCommand::Help => "help",
+        }
+    }
+}
+
+impl TryFrom<&str> for CliCommand {
+    type Error = anyhow::Error;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.to_lowercase().as_ref() {
+            "adduser" => Ok(CliCommand::AddUser),
+            "help" => Ok(CliCommand::Help),
+            other => Err(anyhow!("Invalid command: {}", other)),
+        }
+    }
 }
 
 pub fn main() -> anyhow::Result<()> {
@@ -100,14 +165,7 @@ pub fn main() -> anyhow::Result<()> {
             );
 
             // Validators
-            let amount_validator = move |value: &str| {
-                Ok(if let Ok(_) = value.parse::<f64>() {
-                    Validation::Valid
-                } else {
-                    Validation::Invalid(ErrorMessage::Default)
-                })
-            };
-            let username_validator = {
+            let existing_username_validator = {
                 let usernames = usernames.clone();
                 move |value: &str| {
                     Ok(if usernames.iter().any(|name| name == value) {
@@ -120,41 +178,96 @@ pub fn main() -> anyhow::Result<()> {
                     })
                 }
             };
+            let new_username_validator = {
+                let usernames = usernames.clone();
+                move |value: &str| {
+                    let value = value.trim();
+                    Ok(if value.is_empty() {
+                        Validation::Invalid(ErrorMessage::Custom(
+                            "Username may not be empty".into(),
+                        ))
+                    } else if value.contains(' ') {
+                        Validation::Invalid(ErrorMessage::Custom(
+                            "Username may not contain a space".into(),
+                        ))
+                    } else if value.contains(':') {
+                        Validation::Invalid(ErrorMessage::Custom(
+                            "Username may not contain a colon".into(),
+                        ))
+                    } else if usernames.iter().any(|name| name == value) {
+                        Validation::Invalid(ErrorMessage::Custom(format!(
+                            "Username already exists: {}",
+                            value
+                        )))
+                    } else {
+                        Validation::Valid
+                    })
+                }
+            };
 
             // Autocompletion: All names that contain the current input as
             // substring (case-insensitive)
-            let suggester = {
+            let name_suggester = {
                 move |val: &str| {
                     Ok(usernames
                         .iter()
                         .filter(|acc| acc.to_lowercase().contains(&val.to_lowercase()))
                         .cloned()
-                        .collect())
+                        .collect::<Vec<_>>())
                 }
             };
 
+            // Valid commands
+            let commands = [CliCommand::AddUser, CliCommand::Help];
+
             loop {
-                // First, ask for amount, then for name
-                let amount: f32 = inquire::Text::new("Amount?")
+                // First, ask for command, product or amount
+                let target = inquire::Text::new("Amount, EAN or command:")
                     .with_placeholder("e.g. 2.50 CHF")
-                    .with_validator(amount_validator)
-                    .prompt()?
+                    .with_autocomplete(CommandSuggester::new(&commands))
+                    .prompt()?;
+
+                // Check whether it's a command
+                match CliCommand::try_from(&*target) {
+                    Ok(CliCommand::AddUser) => {
+                        println!("Adding user");
+                        let new_name = inquire::Text::new("Name:")
+                            .with_validator(new_username_validator.clone())
+                            .prompt()?;
+                        let description = format!("Create user {}", new_name);
+                        repo.create_transaction(&Transaction {
+                            from: Account::source("cash")?,
+                            to: Account::user(new_name.clone())?,
+                            amount: 0,
+                            description: Some(description),
+                            meta: None,
+                        })?;
+                        println!("Successfully added user {}", new_name);
+                        continue;
+                    }
+                    Ok(CliCommand::Help) => {
+                        println!("Help");
+                        continue;
+                    }
+                    Err(_) => {}
+                };
+
+                // Not a command, treat it as amount
+                let amount: f32 = target
                     .parse()
-                    .expect("Invalid float (even after validation)");
-                let name = inquire::Text::new("Name?")
-                    .with_autocomplete(suggester.clone())
-                    .with_validator(username_validator.clone())
+                    .context(format!("Invalid amount: {}", target))?;
+                let name = inquire::Text::new("Name:")
+                    .with_autocomplete(name_suggester.clone())
+                    .with_validator(existing_username_validator.clone())
                     .prompt()?;
                 println!("Creating transaction: {} pays {:.2} CHF", name, amount);
-
                 repo.create_transaction(&Transaction {
-                    from: Account::user(name),
+                    from: Account::user(name)?,
                     to: config.account.clone(),
                     amount: repo.convert_amount(amount),
                     description: None,
                     meta: None,
-                })
-                .unwrap();
+                })?;
             }
         }
     }

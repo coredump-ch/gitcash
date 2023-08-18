@@ -14,6 +14,9 @@ There are multiple account types:
 - **Source** (prefix `source:`): Special type of account that can be used to
   deposit money into the system
 
+Accounts come into existence by usage, but you can also explicitly create a new
+account by transferring an amount of 0 to that account.
+
 ## Storage format
 
 Transactions are stored as TOML snippets in Git commit messages. Every commit

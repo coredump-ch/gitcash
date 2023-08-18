@@ -12,6 +12,10 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn summary(&self, config: &RepoConfig) -> String {
+        if self.amount == 0 && self.to.account_type == AccountType::User {
+            return format!("Transaction: Add user {}", self.to.name);
+        }
+
         format!(
             "Transaction: {:?} {} pays {:.2} {} to {:?} {}",
             self.from.account_type,
@@ -47,26 +51,38 @@ pub struct Account {
     pub name: String,
 }
 
+/// Validate a string for usage as account name
+fn validate_account_name(name: &str) -> Result<(), Error> {
+    if !name.chars().all(|char| char.is_ascii_alphanumeric()) {
+        return Err(Error::ValidationError(
+            "Invalid account name, must consist only of ascii characters or digits".into(),
+        ));
+    }
+    if name.is_empty() {
+        return Err(Error::ValidationError(
+            "Invalid account name, may not be empty".into(),
+        ));
+    }
+    Ok(())
+}
+
 impl Account {
-    pub fn user<S: Into<String>>(name: S) -> Self {
-        Self {
-            account_type: AccountType::User,
-            name: name.into(),
-        }
+    pub fn new<S: Into<String>>(account_type: AccountType, name: S) -> Result<Self, Error> {
+        let name = name.into();
+        validate_account_name(&name)?;
+        Ok(Self { account_type, name })
     }
 
-    pub fn point_of_sale<S: Into<String>>(name: S) -> Self {
-        Self {
-            account_type: AccountType::PointOfSale,
-            name: name.into(),
-        }
+    pub fn user<S: Into<String>>(name: S) -> Result<Self, Error> {
+        Self::new(AccountType::User, name)
     }
 
-    pub fn source<S: Into<String>>(name: S) -> Self {
-        Self {
-            account_type: AccountType::Source,
-            name: name.into(),
-        }
+    pub fn point_of_sale<S: Into<String>>(name: S) -> Result<Self, Error> {
+        Self::new(AccountType::PointOfSale, name)
+    }
+
+    pub fn source<S: Into<String>>(name: S) -> Result<Self, Error> {
+        Self::new(AccountType::Source, name)
     }
 }
 
@@ -114,6 +130,7 @@ impl TryFrom<String> for Account {
                 ))
             })?
             .to_string();
+        validate_account_name(&name)?;
 
         Ok(Self { account_type, name })
     }
