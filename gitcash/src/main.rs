@@ -1,12 +1,22 @@
+use std::path::PathBuf;
+
+use anyhow::{anyhow, Context};
 use clap::{Parser, Subcommand};
-use libgitcash::{AccountType, Repo};
+use config::Config;
+use inquire::{Autocomplete, InquireError};
+use libgitcash::{Account, AccountType, Repo, Transaction};
 use tracing::metadata::LevelFilter;
+
+use crate::validators::{NewUsernameValidator, UsernameValidator};
+
+mod config;
+mod validators;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short, long)]
-    repo_path: std::path::PathBuf,
+    #[arg(short, long, default_value = "config.toml")]
+    config: PathBuf,
 
     #[command(subcommand)]
     command: Command,
@@ -20,6 +30,80 @@ enum Command {
     Balances,
     /// List all user accounts with negative balances
     Shame,
+
+    /// Interactive CLI
+    Cli,
+}
+
+#[derive(Clone)]
+struct CommandSuggester {
+    commands: Vec<&'static str>,
+}
+
+impl CommandSuggester {
+    pub fn new(commands: &[CliCommand]) -> Self {
+        Self {
+            commands: commands
+                .iter()
+                .map(|command| command.command())
+                .collect::<Vec<_>>(),
+        }
+    }
+}
+
+impl Autocomplete for CommandSuggester {
+    fn get_suggestions(&mut self, input: &str) -> Result<Vec<String>, inquire::CustomUserError> {
+        if input.is_empty() {
+            return Ok(vec![]);
+        }
+        Ok(self
+            .commands
+            .iter()
+            .filter(|acc| acc.to_lowercase().contains(&input.to_lowercase()))
+            .map(|value| value.to_string())
+            .collect::<Vec<_>>())
+    }
+
+    fn get_completion(
+        &mut self,
+        _input: &str,
+        highlighted_suggestion: Option<String>,
+    ) -> Result<inquire::autocompletion::Replacement, inquire::CustomUserError> {
+        Ok(highlighted_suggestion)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum CliCommand {
+    AddUser,
+    Help,
+}
+
+impl CliCommand {
+    fn command(&self) -> &'static str {
+        match self {
+            CliCommand::AddUser => "adduser",
+            CliCommand::Help => "help",
+        }
+    }
+
+    fn description(&self) -> &'static str {
+        match self {
+            CliCommand::AddUser => "Add a new user",
+            CliCommand::Help => "Show this help",
+        }
+    }
+}
+
+impl TryFrom<&str> for CliCommand {
+    type Error = anyhow::Error;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.to_lowercase().as_ref() {
+            "adduser" => Ok(CliCommand::AddUser),
+            "help" => Ok(CliCommand::Help),
+            other => Err(anyhow!("Invalid command: {}", other)),
+        }
+    }
 }
 
 pub fn main() -> anyhow::Result<()> {
@@ -32,9 +116,13 @@ pub fn main() -> anyhow::Result<()> {
     // Parse args
     let args = Args::parse();
 
-    // Open repo
-    let repo = Repo::open(&args.repo_path)?;
+    // Parse config
+    let config = Config::load(&args.config)?;
 
+    // Open repo
+    let mut repo = Repo::open(&config.repo_path)?;
+
+    // Run command
     match args.command {
         Command::Accounts => {
             println!("Accounts:");
@@ -74,7 +162,96 @@ pub fn main() -> anyhow::Result<()> {
                 println!("None at all! 🎉");
             }
         }
+        Command::Cli => {
+            println!("Welcome to the GitCash CLI for {}!", config.git_name);
+            loop {
+                if let Err(e) = handle_cli_input(&mut repo, &config) {
+                    match e.downcast::<InquireError>() {
+                        Ok(e) => return Err(e.into()),
+                        Err(e) => println!("Error: {}", e),
+                    }
+                }
+            }
+        }
     }
+
+    Ok(())
+}
+
+// Valid commands
+const COMMANDS: [CliCommand; 2] = [CliCommand::AddUser, CliCommand::Help];
+
+fn handle_cli_input(repo: &mut Repo, config: &Config) -> anyhow::Result<()> {
+    // Get list of valid user account names
+    let usernames = repo
+        .accounts()
+        .into_iter()
+        .filter(|acc| acc.account_type == AccountType::User)
+        .map(|acc| acc.name)
+        .collect::<Vec<_>>();
+
+    // Autocompletion: All names that contain the current input as
+    // substring (case-insensitive)
+    let name_suggester = {
+        let usernames = usernames.clone();
+        move |val: &str| {
+            Ok(usernames
+                .iter()
+                .filter(|acc| acc.to_lowercase().contains(&val.to_lowercase()))
+                .cloned()
+                .collect::<Vec<_>>())
+        }
+    };
+
+    // First, ask for command, product or amount
+    let target = inquire::Text::new("Amount, EAN or command:")
+        .with_placeholder("e.g. 2.50 CHF")
+        .with_autocomplete(CommandSuggester::new(&COMMANDS))
+        .prompt()?;
+
+    // Check whether it's a command
+    match CliCommand::try_from(&*target) {
+        Ok(CliCommand::AddUser) => {
+            println!("Adding user");
+            let new_name = inquire::Text::new("Name:")
+                .with_validator(NewUsernameValidator::new(usernames.clone()))
+                .prompt()?;
+            repo.create_transaction(Transaction {
+                from: Account::source("cash")?,
+                to: Account::user(new_name.clone())?,
+                amount: 0,
+                description: Some(format!("Create user {}", new_name)),
+                meta: None,
+            })?;
+            println!("Successfully added user {}", new_name);
+            return Ok(());
+        }
+        Ok(CliCommand::Help) => {
+            println!("Available commands:");
+            for command in COMMANDS {
+                println!("- {}: {}", command.command(), command.description());
+            }
+            return Ok(());
+        }
+        Err(_) => {}
+    };
+
+    // Not a command, treat it as amount
+    let amount: f32 = target
+        .parse()
+        .context(format!("Invalid amount: {}", target))?;
+    let name = inquire::Text::new("Name:")
+        .with_autocomplete(name_suggester.clone())
+        .with_validator(UsernameValidator::new(usernames))
+        .prompt()?;
+    println!("Creating transaction: {} pays {:.2} CHF", name, amount);
+    repo.create_transaction(Transaction {
+        from: Account::user(name)?,
+        to: config.account.clone(),
+        amount: repo.convert_amount(amount),
+        description: None,
+        meta: None,
+    })?;
 
     Ok(())
 }

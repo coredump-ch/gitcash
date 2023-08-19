@@ -32,8 +32,10 @@ jobs:
         run: git clone https://github.com/coredump-ch/gitcash-demo-repo/
       - name: Build
         run: cargo build
+      - name: Create config
+        run: echo -e "repo_path = 'gitcash-demo-repo'\naccount = 'pos:fridge'\ngit_name = 'CI'\ngit_email = 'ci@example.com'" > config.toml
       - name: Calculate balances
-        run: target/debug/gitcash --repo-path gitcash-demo-repo balances
+        run: target/debug/gitcash balances
 
   rustfmt:
     name: Check code formatting

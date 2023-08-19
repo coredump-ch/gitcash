@@ -6,4 +6,8 @@ pub enum Error {
     LibgitError(#[from] git2::Error),
     #[error("Could not parse transaction: {0}")]
     TransactionParseError(String),
+    #[error("Could not serialize transaction: {0}")]
+    TransactionSerializeError(String),
+    #[error("Validation error: {0}")]
+    ValidationError(String),
 }

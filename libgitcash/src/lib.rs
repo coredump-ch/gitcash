@@ -3,18 +3,24 @@ use std::{
     path::Path,
 };
 
-use git2::Sort;
+use git2::{Signature, Sort};
 use tracing::debug;
 
+mod config;
 mod error;
 mod transaction;
 
 use crate::{error::Error, transaction::extract_transaction};
 
-pub use transaction::{Account, AccountType, Transaction};
+pub use crate::{
+    config::{Currency, RepoConfig},
+    transaction::{Account, AccountType, Transaction},
+};
 
 /// A GitCash repository and all its transactions
 pub struct Repo {
+    repository: git2::Repository,
+    config: RepoConfig,
     transactions: Vec<Transaction>,
 }
 
@@ -27,6 +33,9 @@ impl Repo {
             Ok(repo) => repo,
             Err(e) => return Err(Error::RepoError(format!("Failed to open repo: {}", e))),
         };
+
+        // Read config
+        let config = RepoConfig::load(repo_path)?;
 
         // Traverse commits from oldest to newest, extract transactions
         let mut revwalk = repo.revwalk()?;
@@ -47,7 +56,11 @@ impl Repo {
             transactions.push(transaction);
         }
 
-        Ok(Repo { transactions })
+        Ok(Repo {
+            repository: repo,
+            config,
+            transactions,
+        })
     }
 
     /// Return set of all acounts
@@ -68,5 +81,42 @@ impl Repo {
             *destination += transaction.amount;
         }
         accounts
+    }
+
+    /// Convert a floating-point currency amount into an integer based value.
+    pub fn convert_amount(&self, amount: f32) -> i32 {
+        let amount = amount * self.config.currency.divisor as f32;
+        amount as i32
+    }
+
+    pub fn create_transaction(&mut self, transaction: Transaction) -> Result<(), Error> {
+        let summary = transaction.summary(&self.config);
+        debug!("Creating commit: {}", &summary);
+
+        // Encode transaction
+        let transaction_toml = toml::to_string(&transaction)
+            .map_err(|e| Error::TransactionSerializeError(e.to_string()))?;
+        let commit_message = format!("{}\n\n---\n{}\n---", &summary, transaction_toml.trim());
+
+        // Create signature (for both committer and author)
+        let sig = Signature::now("GitCash CLI", "gitcash@coredump.ch")?;
+
+        // Create tree object
+        let head = self
+            .repository
+            .find_commit(self.repository.head()?.target().unwrap())?;
+        let tree_id = self.repository.index()?.write_tree()?;
+        let tree = self.repository.find_tree(tree_id)?;
+
+        // Create commit
+        let commit =
+            self.repository
+                .commit(Some("HEAD"), &sig, &sig, &commit_message, &tree, &[&head])?;
+
+        // Store transaction
+        self.transactions.push(transaction);
+
+        debug!("Created commit: {commit}");
+        Ok(())
     }
 }
