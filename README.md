@@ -61,6 +61,12 @@ See <https://github.com/coredump-ch/gitcash-demo-repo>.
   repository
 - `gitcash`: A CLI client for GitCash
 
+## History
+
+GitCash was brainstormed and initially developed at CCC Camp 2023. Special
+thanks to some of the people from Luxeria for giving feedback on the initial
+design!
+
 ## License
 
 Licensed under the AGPL version 3 or later. See `LICENSE.md` file.
