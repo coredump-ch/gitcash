@@ -35,7 +35,7 @@ enum Command {
     Cli,
 
     /// Generate an example config
-    ConnectPointOfSale,
+    GenerateConfig,
 }
 
 #[derive(Clone)]
@@ -119,7 +119,7 @@ pub fn main() -> anyhow::Result<()> {
     // Parse args
     let args = Args::parse();
 
-    if args.command == Command::ConnectPointOfSale {
+    if args.command == Command::GenerateConfig {
         if args.config.exists() {
             bail!(format!(
                 "❌ Config File {:?} already exists!",
@@ -129,14 +129,14 @@ pub fn main() -> anyhow::Result<()> {
 
         let example = include_str!("../../config.toml.example");
 
-        println!("💰 Wrote {:?} 🏦\n", args.config.display());
-
-        return write(&args.config, example).with_context(|| {
+        write(&args.config, example).with_context(|| {
             format!(
                 "unable to write example config to {:?}",
                 args.config.display()
             )
-        });
+        })?;
+        println!("💰 Wrote {:?} 🏦\n", args.config.display());
+        return Ok(());
     }
 
     // Parse config
@@ -196,7 +196,7 @@ pub fn main() -> anyhow::Result<()> {
                 }
             }
         }
-        Command::ConnectPointOfSale => {
+        Command::GenerateConfig => {
             unreachable!("handled above");
         }
     }
