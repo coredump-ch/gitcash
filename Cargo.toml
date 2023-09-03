@@ -1,2 +1,3 @@
 [workspace]
 members = ["libgitcash", "gitcash"]
+resolver = "2"
