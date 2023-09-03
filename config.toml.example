@@ -1,0 +1,10 @@
+# Path to the GitCash repository to use
+repo_path = "../gitcash-demo-repo/"
+
+# Account corresponding to this PoS
+account = "pos:DemoKuehlschrank"
+
+# Name to use for git commits
+git_name = "Coredump.ch Hacker- & Maker-Space"
+# E-mail to use for git commits
+git_email = "kühlschrank@coredump.ch"
