@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::{fs::write, path::PathBuf};
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use clap::{Parser, Subcommand};
 use config::Config;
 use inquire::{Autocomplete, InquireError};
@@ -22,7 +22,7 @@ struct Args {
     command: Command,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, PartialEq, Eq)]
 enum Command {
     /// List all accounts
     Accounts,
@@ -33,6 +33,9 @@ enum Command {
 
     /// Interactive CLI
     Cli,
+
+    /// Generate an example config
+    GenerateConfig,
 }
 
 #[derive(Clone)]
@@ -116,6 +119,26 @@ pub fn main() -> anyhow::Result<()> {
     // Parse args
     let args = Args::parse();
 
+    if args.command == Command::GenerateConfig {
+        if args.config.exists() {
+            bail!(format!(
+                "Config file {:?} already exists!",
+                args.config.display()
+            ));
+        }
+
+        let example = include_str!("../../config.toml.example");
+
+        write(&args.config, example).with_context(|| {
+            format!(
+                "unable to write example config to {:?}",
+                args.config.display()
+            )
+        })?;
+        println!("✅ Wrote example config to {:?}", args.config.display());
+        return Ok(());
+    }
+
     // Parse config
     let config = Config::load(&args.config)?;
 
@@ -172,6 +195,9 @@ pub fn main() -> anyhow::Result<()> {
                     }
                 }
             }
+        }
+        Command::GenerateConfig => {
+            unreachable!("handled above");
         }
     }
 
