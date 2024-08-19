@@ -46,7 +46,7 @@ pub enum AccountType {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Hash, Clone, Deserialize, Serialize)]
 #[serde(try_from = "String", into = "String")]
-/// An entity that does a transaction
+/// An entity related to a transaction
 ///
 /// Can be deserialize from "{account_type}:{name}"
 pub struct Account {
