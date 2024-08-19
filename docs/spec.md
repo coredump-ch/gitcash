@@ -27,11 +27,27 @@ If a commit message starts with a special prefix, it will be parsed:
 - `Transaction: <description>`: Create a transaction
 - `Revert: <description>`: Revert a transaction
 
-The `<description>` is a human-readable desription of the transaction.
+The `<description>` is a human-readable description of the transaction.
 
 The data of the transaction (in TOML format) is inserted between two markers
 (`---` on a dedicated line). This allows adding more metadata before or after
 the data section, which won't be parsed.
+
+### TOML keys
+
+The TOML section can use the following keys:
+
+- `from` (required): The source account
+- `to` (required): The destination account
+- `amount` (required): The amount (must fit in i32, i.e. between `-2147483648`
+  and `2147483647` inclusive)
+- `description` (optional): A free-form string to describe the transaction
+- `meta` (optional): A table containing meta information
+
+The following meta keys may be used, all of them are optional:
+
+- `class`: The product class as a string, e.g. "softdrink".
+- `ean`: The EAN code as an unsigned integer.
 
 ### Example commits
 

@@ -30,8 +30,8 @@ impl Transaction {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TransactionMeta {
-    pub class: String,
-    pub ean: u64,
+    pub class: Option<String>,
+    pub ean: Option<u64>,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Hash, Clone, Copy)]
