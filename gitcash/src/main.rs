@@ -122,7 +122,7 @@ pub fn main() -> anyhow::Result<()> {
     if args.command == Command::GenerateConfig {
         if args.config.exists() {
             bail!(format!(
-                "❌ Config File {:?} already exists!",
+                "Config file {:?} already exists!",
                 args.config.display()
             ));
         }
@@ -135,7 +135,7 @@ pub fn main() -> anyhow::Result<()> {
                 args.config.display()
             )
         })?;
-        println!("💰 Wrote {:?} 🏦\n", args.config.display());
+        println!("✅ Wrote example config to {:?}", args.config.display());
         return Ok(());
     }
 
