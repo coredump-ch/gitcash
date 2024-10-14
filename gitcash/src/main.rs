@@ -262,10 +262,13 @@ fn handle_cli_input(repo: &mut Repo, config: &Config) -> anyhow::Result<()> {
         Err(_) => {}
     };
 
-    // Not a command, treat it as amount
+    // Not a command, treat it as amount if below a reasonable limit
     let amount: f32 = target
         .parse()
         .context(format!("Invalid amount: {}", target))?;
+    if amount > 1337.0 {
+        bail!("Neither a valid command nor a known EAN, and definitely not a reasonable amount either");
+    }
     let name = inquire::Text::new("Name:")
         .with_autocomplete(name_suggester.clone())
         .with_validator(UsernameValidator::new(usernames))
